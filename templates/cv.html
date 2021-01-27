@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CV</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" integrity="sha512-HK5fgLBL+xu6dm/Ii3z4xhlSUyZgTT9tuc/hSrtw6uzJOvgRr2a9jyxxT1ely+B+xFAmJKVSTbpM/CuL7qxO8w==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="/static/cv.css">
+    <script type="module" defer>
+        import { renderCV } from '/static/cv.js';
+
+        async function loadData() {
+            const response = await fetch('/static/cvdata.json', {
+                cache: 'no-cache',
+                credentials: 'same-origin',
+            });
+            const CVData = await response.json();
+            renderCV(CVData);
+        }
+
+        loadData();
+    </script>
+</head>
+<body>
+<section id="header">
+    <span id="name"></span><span id="nickname"></span>
+    <div id="contacts"></div>
+</section>
+<section id="work">
+    <h2>Work experience</h2>
+    <div id="workList"></div>
+</section>
+<section id="projects">
+    <h2>Projects</h2>
+    <div id="projectsList"></div>
+</section>
+<section id="education">
+    <h2>Education</h2>
+    <div id="educationList"></div>
+</section>
+<section id="skills">
+    <h2>Skills</h2>
+    <div id="skillList" class="tiered"></div>
+</section>
+</body>
+</html>

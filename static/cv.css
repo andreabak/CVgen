@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+html {
+    font-size: 13pt;
+    font-family: 'Jost', sans-serif;
+    text-rendering: geometricPrecision;
+}
+body {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 2.5em 3em;
+    background-color: white;
+}
+@media print {
+    html {
+        font-size: 10pt;
+        margin: 0;
+    }
+    body {
+        padding: 2cm 1.75cm;
+    }
+}
+@media screen {
+    html {
+        background-color: hsl(210, 10%, 70%);
+    }
+    body {
+        max-width: calc(21cm * 1.3 - 2cm);
+        box-shadow: 0 0.25em 1em;
+        border-radius: 0.1em;
+        margin: .5em auto;
+    }
+}
+section:not(:first-child) {
+    margin-top: 1em;
+}
+section:not(:last-child) {
+    margin-bottom: 1em;
+    padding-bottom: .75em;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.75);
+}
+section > h2 {
+    font-size: calc(17em / 13);
+    font-weight: 600;
+    font-variant: small-caps;
+    margin: 0.15em 0 0.3em;
+    text-align: center;
+}
+section#header {
+    padding-bottom: .25em;
+}
+#name {
+    font-size: calc(21em / 13);
+    font-weight: 700;
+    line-height: 1.2;
+}
+#nickname {
+    font-size: calc(15em / 13);
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.5);
+    margin-left: .5em;
+}
+#nickname:before {
+    font-weight: 200;
+    content: "\276E";
+    color: rgba(0, 0, 0, 0.333);
+}
+#nickname:after {
+    font-weight: 200;
+    content: "\276F";
+    color: rgba(0, 0, 0, 0.333);
+}
+#contacts {
+    display: flex;
+    margin: 0 calc(-0.63em / 1.5);
+}
+#contacts > * {
+    margin: 0 calc(0.63em / 1.5);
+    text-align: right;
+}
+#contacts > *:not(:first-child) {
+    flex-grow: 1;
+}
+#contacts > *[data-onlyicon="1"] {
+    margin-left: 0;
+    flex-grow: 0;
+}
+.contact {
+    font-weight: 500;
+    text-decoration: none;
+    color: initial;
+    opacity: 0.75;
+}
+.contact:hover {
+    opacity: 1;
+}
+.contact[data-onlyicon="1"] > .contactText {
+    display: none;
+}
+.contact[data-icon]:before {
+    content: "\00A0";
+    display: inline-block;
+    font-family:"Font Awesome 5 Free";
+    font-weight: 400;
+    opacity: 0.667;
+}
+.contact[data-icon="address"]:before {
+    content: "\f3c5";
+    font-weight: 900;
+}
+.contact[data-icon="email"]:before {
+    content: "\f0e0";
+    font-weight: 900;
+}
+.contact[data-icon="phone"]:before {
+    content: "\f095";
+    font-weight: 900;
+}
+.contact[data-icon="whatsapp"]:before {
+    font-family:"Font Awesome 5 Brands";
+    content: "\f232";
+}
+.contact[data-icon="signal"]:before {
+    width: 1em;
+    background: no-repeat top/contain url("signal-logo.bw.svg");
+    line-height: 1;
+}
+.contact[data-icon="telegram"]:before {
+    font-family:"Font Awesome 5 Brands";
+    content: "\f3fe";
+}
+.contact[data-icon="discord"]:before {
+    font-family:"Font Awesome 5 Brands";
+    content: "\f392";
+}
+.contact[data-icon="github"]:before {
+    font-family:"Font Awesome 5 Brands";
+    content: "\f09b";
+}
+.activity {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    line-height: 1.2;
+    margin: 0.5em 0;
+}
+.activity > .title {
+    grid-row: 1;
+    grid-column: 1;
+    font-weight: 600;
+    font-style: italic;
+    font-size: calc(14em / 13);
+}
+.activity > .period {
+    grid-row: 1;
+    grid-column: 2;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    font-size: calc(12em / 13);
+    font-weight: 500;
+}
+.activity > .period > .date:not(:first-child):before {
+    content: "\2013";
+    margin: 0 .1em;
+}
+/* .activity[data-has-subtitle="1"][data-has-location="0"] > .period {
+    grid-row: 1 / span 2;
+} */
+.activity > .subtitle {
+    grid-row: 2;
+    grid-column: 1;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 0.9em;
+    opacity: 0.75;
+}
+.activity > .location {
+    grid-row: 2;
+    grid-column: 2;
+    text-align: right;
+    font-size: calc(12em / 13);
+    opacity: 0.75;
+}
+.activity > .description {
+    grid-row: 3;
+    grid-column: 1 / span 2;
+    margin: .3em 0;
+}
+.activity > ul.description {
+    padding-left: 2em;
+    list-style-type: none;
+}
+.activity > ul.description > li {
+    margin: .2em 0;
+    position: relative;
+}
+.activity > ul.description > li:before {
+    content: "\203A";
+    font-weight: 900;
+    position: absolute;
+    right: 100%;
+    margin-right: .375em;
+    font-size: 1.125em;
+    top: -.1375em;
+    transform: scaleX(133%);
+}
+.skillGroup {
+    display: grid;
+    grid-template-columns: 0fr auto;
+    grid-column-gap: .5em;
+    align-items: center;
+    margin: calc(0.75em / 13 * 5) 0;
+}
+.skillGroupName {
+    font-weight: 600;
+    font-style: italic;
+    line-height: 1.2;
+    margin-bottom: .125em;
+}
+.skillsContainer {
+    font-size: calc(11em / 12);
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 calc(-0.63em / 3);
+}
+.skillsContainer > * {
+    margin: 0 calc(0.63em / 3);
+}
+.skill {
+    white-space: nowrap;
+}
+.skill:not(:last-child):after {
+    content: " | ";
+    opacity: 0.5;
+}
+.skill:last-child:after {
+    margin-left: calc(0.63em / 1.5);
+    content: "[\2026]";
+    opacity: 0.5;
+    font-size: .85em;
+    vertical-align: 0.0833em;
+}
+.skill[data-level]:before {
+    --main-hue: 300deg;
+    content: "";
+    margin-right: 0.31em;
+/*    width: calc(0.67em * (16 / 12));
+    height: 0.8em; */
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    font-weight: 600;
+    color: hsla(var(--main-hue), 80%, 20%, 0.75);
+    text-align: center;
+}
+#skillList.signal .skill[data-level]:before {
+    font-size: calc(10.5em / 11);
+    background-position: bottom center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    filter: contrast(0.2) sepia(1) hue-rotate(-40deg) hue-rotate(var(--main-hue)) saturate(5);
+}
+#skillList.signal .skill[data-level="D"]:before {
+    --main-hue: 20deg;
+    background-image: url("signal.0.svg");
+}
+#skillList.signal .skill[data-level="C"]:before {
+    --main-hue: 45deg;
+    background-image: url("signal.25.svg");
+}
+#skillList.signal .skill[data-level="B"]:before {
+    --main-hue: 70deg;
+    background-image: url("signal.50.svg");
+}
+#skillList.signal .skill[data-level="A"]:before {
+    --main-hue: 95deg;
+    background-image: url("signal.75.svg");
+}
+#skillList.signal .skill[data-level="S"]:before {
+    --main-hue: 120deg;
+    background-image: url("signal.100.svg");
+}
+#skillList.tiered .skill[data-level]:before {
+    content: "?";
+    font-size: calc(9em / 11);
+    vertical-align: calc(.6em / 9);
+    box-sizing: content-box;
+    background-color: hsla(var(--main-hue), 95%, 85%, 0.75);
+    border: calc(2em / 11) solid;
+    border-color: hsla(var(--main-hue), 95%, 45%, 0.75);
+    line-height: 1.025;
+/*     box-shadow: 0 0 0 calc(2em / 11) hsla(var(--main-hue), 95%, 45%, 0.75); */
+/*     opacity: 0.75; */
+}
+#skillList.tiered .skill[data-level="D"]:before {
+    --main-hue: 30deg;
+    content: "D";
+}
+#skillList.tiered .skill[data-level="C"]:before {
+    --main-hue: 45deg;
+    content: "C";
+}
+#skillList.tiered .skill[data-level="B"]:before {
+    --main-hue: 90deg;
+    content: "B";
+}
+#skillList.tiered .skill[data-level="A"]:before {
+    --main-hue: 150deg;
+    content: "A";
+}
+#skillList.tiered .skill[data-level="S"]:before {
+    --main-hue: 200deg;
+    content: "S";
+}
