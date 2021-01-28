@@ -1,6 +1,7 @@
 """CV serving Flask app"""
 import base64
 import json
+import os
 import uuid
 import zlib
 from contextlib import contextmanager
@@ -31,11 +32,14 @@ USERS_TABLE_NAME: str = "users"
 TOKEN_TABLE_NAME: str = "tokens"
 CONNECTIONS_TABLE_NAME: str = "connections"
 
+DB_FILENAME: str = "app.db.sqlite"
+DB_PATH: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), DB_FILENAME)
+
 
 app: Flask = Flask(__name__)
 auth: HTTPBasicAuth = HTTPBasicAuth()
 database: dataset.Database = dataset.connect(
-    url="sqlite:///app.db.sqlite",
+    url=f"sqlite:///{DB_PATH}",
     engine_kwargs=dict(connect_args=dict(check_same_thread=False)),
 )
 db_thread_lock: RLock = RLock()
