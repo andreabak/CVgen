@@ -1,11 +1,25 @@
 import {html, render} from 'https://unpkg.com/lit-html?module';
 
+
 const intBool = value => value ? 1 : 0;
+
+
+const sectionTemplate = (data) => html`
+    <section id="${data.id}">${data.inner}</section>`;
+const headerSectionTemplate = (data) => html`
+    <span id="name">${data.name}</span><span id="nickname">${data.nickname}</span>
+    <div id="contacts">${data.contacts}</div>`;
+const listSectionTemplate = (data) => html`
+    <h2>${data.title}</h2>
+    <div id="${data.id}List">${data.content}</div>`;
+const skillsSectionTemplate = (data) => html`
+    <h2>${data.title}</h2>
+    <div id="${data.id}List" class="tiered">${data.content}</div>`;
 
 const contactTemplate = (data) => html`
     <a class="contact" title="${data.type}: ${data.contact}" href="${data.href}"
             target="_blank"
-            data-onlyicon="${data.onlyicon||0}"
+            data-onlyicon="${intBool(data.onlyicon)}"
             data-icon="${data.icon||data.type.toLowerCase()}">
         <span class="contactText">${data.contact}</span>
     </a>`;
@@ -40,17 +54,81 @@ const skillGroupTemplate = (data) => html`
         <div class="skillsContainer">${data.skills}</div>
     </div>`;
 
-const renderName = (name) => render(name, document.querySelector('#name'));
 
-const renderNickName = (nickname) => render(nickname, document.querySelector('#nickname'));
-
-const renderContacts = (contactsData) => {
-    render(contactsData.map((contact) => contactTemplate(contact)), document.querySelector('#contacts'));
+const renderSections = (sectionsData) => {
+    const sections = [];
+    for (const [sectionId, sectionData] of Object.entries(sectionsData)) {
+        const data = {...sectionData};
+        data.id = sectionId;
+        let sectionInner;
+        if (data.type == 'header')
+            sectionInner = makeHeaderSection(data);
+        else if (data.type == 'list')
+            sectionInner = makeListSection(data);
+        else if (data.type == 'skills')
+            sectionInner = makeSkillsSection(data);
+        const section = sectionTemplate({id: data.id, inner: sectionInner});
+        sections.push(section);
+    }
+    render(sections, document.querySelector('body'));
 };
 
-const makeDescriptionList = (descriptionList) => {
-    const items = descriptionList.map((item) => descriptionListItemTemplate({text: item}));
-    return descriptionListTemplate({items: items});
+const makeHeaderSection = (headerData) => {
+    const data = {...headerData};
+    data.contacts = data.contacts.map((contact) => contactTemplate(contact));
+    return headerSectionTemplate(data);
+};
+const makeListSection = (listData) => {
+    const data = {...listData};
+    if (data.listType == "work")
+        data.content = makeWorkList(data.content);
+    else if (data.listType == "projects")
+        data.content = makeProjectsList(data.content);
+    else if (data.listType == "education")
+        data.content = makeEducationList(data.content);
+    return listSectionTemplate(data);
+};
+const makeSkillsSection = (skillsData) => {
+    const data = {...skillsData};
+    data.content = makeSkills(data.content);
+    return skillsSectionTemplate(data);
+};
+
+const makeWorkList = (workData) => {
+    const activitiesData = workData.map((job) => ({
+        title: job.company,
+        periodFrom: job.period[0],
+        periodTo: job.period[1],
+        subtitle: job.jobTitle,
+        location: job.location,
+        description: job.keyPoints,
+    }));
+    return makeActivities(activitiesData);
+};
+const makeProjectsList = (projectsData) => {
+    const activitiesData = projectsData.map((project) => ({
+        title: project.name,
+        periodFrom: project.period[0],
+        periodTo: project.period[1],
+        subtitle: project.subtitle,
+        description: project.features,
+    }));
+    return makeActivities(activitiesData);
+};
+const makeEducationList = (educationData) => {
+    const activitiesData = educationData.map((edu) => ({
+        title: edu.institution,
+        periodFrom: edu.period[0],
+        periodTo: edu.period[1],
+        location: edu.location,
+        subtitle: edu.course,
+        description: edu.description,
+    }));
+    return makeActivities(activitiesData);
+};
+
+const makeActivities = (activitiesData) => {
+    return activitiesData.map((activity) => makeTimedActivity(activity));
 };
 const makeTimedActivity = (activityData) => {
     const data = {...activityData};
@@ -60,46 +138,12 @@ const makeTimedActivity = (activityData) => {
         data.description = descriptionTextTemplate({text: data.description});
     return timedActivityTemplate(data);
 };
-const renderActivities = (activitiesData, element) => {
-    render(activitiesData.map((activity) => makeTimedActivity(activity)), element);
+const makeDescriptionList = (descriptionList) => {
+    const items = descriptionList.map((item) => descriptionListItemTemplate({text: item}));
+    return descriptionListTemplate({items: items});
 };
 
-const renderWork = (workData) => {
-    const activitiesData = workData.map((job) => ({
-        title: job.company,
-        periodFrom: job.period[0],
-        periodTo: job.period[1],
-        subtitle: job.jobTitle,
-        location: job.location,
-        description: job.keyPoints,
-    }));
-    renderActivities(activitiesData, document.querySelector('#workList'));
-};
-
-const renderProjects = (projectsData) => {
-    const activitiesData = projectsData.map((project) => ({
-        title: project.name,
-        periodFrom: project.period[0],
-        periodTo: project.period[1],
-        subtitle: project.subtitle,
-        description: project.features,
-    }));
-    renderActivities(activitiesData, document.querySelector('#projectsList'));
-};
-
-const renderEducation = (educationData) => {
-    const activitiesData = educationData.map((edu) => ({
-        title: edu.institution,
-        periodFrom: edu.period[0],
-        periodTo: edu.period[1],
-        location: edu.location,
-        subtitle: edu.course,
-        description: edu.description,
-    }));
-    renderActivities(activitiesData, document.querySelector('#educationList'));
-};
-
-const renderSkills = (skillsData) => {
+const makeSkills = (skillsData) => {
     const skillGroupsHTML = [];
     for (const [skillGroupName, skills] of Object.entries(skillsData)) {
         const skillsHTML = skills.map((skill) => skillTemplate(skill));
@@ -107,16 +151,10 @@ const renderSkills = (skillsData) => {
             {name: skillGroupName, skills: skillsHTML}
         ));
     }
-    render(skillGroupsHTML, document.querySelector('#skillList'));
+    return skillGroupsHTML
 };
 
 
 export const renderCV = (data) => {
-    renderName(data.name);
-    renderNickName(data.nickname);
-    renderContacts(data.contacts);
-    renderWork(data.work);
-    renderProjects(data.projects);
-    renderEducation(data.education);
-    renderSkills(data.skills);
+    renderSections(data.sections);
 };

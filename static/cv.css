@@ -253,34 +253,34 @@ section#header {
     color: hsla(var(--main-hue), 80%, 20%, 0.75);
     text-align: center;
 }
-#skillList.signal .skill[data-level]:before {
+#skillsList.signal .skill[data-level]:before {
     font-size: calc(10.5em / 11);
     background-position: bottom center;
     background-size: cover;
     background-repeat: no-repeat;
     filter: contrast(0.2) sepia(1) hue-rotate(-40deg) hue-rotate(var(--main-hue)) saturate(5);
 }
-#skillList.signal .skill[data-level="D"]:before {
+#skillsList.signal .skill[data-level="D"]:before {
     --main-hue: 20deg;
     background-image: url("signal.0.svg");
 }
-#skillList.signal .skill[data-level="C"]:before {
+#skillsList.signal .skill[data-level="C"]:before {
     --main-hue: 45deg;
     background-image: url("signal.25.svg");
 }
-#skillList.signal .skill[data-level="B"]:before {
+#skillsList.signal .skill[data-level="B"]:before {
     --main-hue: 70deg;
     background-image: url("signal.50.svg");
 }
-#skillList.signal .skill[data-level="A"]:before {
+#skillsList.signal .skill[data-level="A"]:before {
     --main-hue: 95deg;
     background-image: url("signal.75.svg");
 }
-#skillList.signal .skill[data-level="S"]:before {
+#skillsList.signal .skill[data-level="S"]:before {
     --main-hue: 120deg;
     background-image: url("signal.100.svg");
 }
-#skillList.tiered .skill[data-level]:before {
+#skillsList.tiered .skill[data-level]:before {
     content: "?";
     font-size: calc(9em / 11);
     vertical-align: calc(.6em / 9);
@@ -292,23 +292,23 @@ section#header {
 /*     box-shadow: 0 0 0 calc(2em / 11) hsla(var(--main-hue), 95%, 45%, 0.75); */
 /*     opacity: 0.75; */
 }
-#skillList.tiered .skill[data-level="D"]:before {
+#skillsList.tiered .skill[data-level="D"]:before {
     --main-hue: 30deg;
     content: "D";
 }
-#skillList.tiered .skill[data-level="C"]:before {
+#skillsList.tiered .skill[data-level="C"]:before {
     --main-hue: 45deg;
     content: "C";
 }
-#skillList.tiered .skill[data-level="B"]:before {
+#skillsList.tiered .skill[data-level="B"]:before {
     --main-hue: 90deg;
     content: "B";
 }
-#skillList.tiered .skill[data-level="A"]:before {
+#skillsList.tiered .skill[data-level="A"]:before {
     --main-hue: 150deg;
     content: "A";
 }
-#skillList.tiered .skill[data-level="S"]:before {
+#skillsList.tiered .skill[data-level="S"]:before {
     --main-hue: 200deg;
     content: "S";
 }
