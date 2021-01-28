@@ -200,7 +200,11 @@ def flatten(obj: Any, pending_ids: Optional[Set[int]] = None) -> Any:
     pending_ids.add(obj_id)
     result: Any
     if isinstance(obj, Mapping):
-        result = {k: flatten(v, pending_ids=pending_ids) for k, v in obj.items()}
+        result = {
+            k: flatten(v, pending_ids=pending_ids)
+            for k, v in obj.items()
+            if isinstance(k, (str, int, float, bool))
+        }
     elif isinstance(obj, Collection) and hasattr(obj, "__iter__"):
         result = [flatten(o, pending_ids=pending_ids) for o in obj]
     elif isinstance(obj, object):
@@ -208,6 +212,7 @@ def flatten(obj: Any, pending_ids: Optional[Set[int]] = None) -> Any:
             n: flatten(v, pending_ids=pending_ids)
             for n in dir(obj)
             if not n.startswith("_")
+            and isinstance(n, (str, int, float, bool))
             and not callable(v := getattr(obj, n, None))
             and not isinstance(v, (type, ModuleType))
         }
