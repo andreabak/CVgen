@@ -11,7 +11,7 @@
         import { renderCV } from '/static/cv.js';
 
         async function loadData() {
-            const response = await fetch('/static/cvdata.json', {
+            const response = await fetch('{{ cv_data_url }}', {
                 cache: 'no-cache',
                 credentials: 'same-origin',
             });
@@ -25,8 +25,14 @@
 <body>
     {% set self_url = request.url %}
     <div id="onlinePrint">
-        <span>This is a printed version of the dynamically-generated document at</span>
-        <a href="{{ self_url }}">{{ self_url | regex_replace('^https?://', '') }}</a>
+        <span>
+            This is a printed version of the {% if not cv_repo_url %}dynamically-generated{% endif %} document at
+            <a href="{{ self_url }}">{{ self_url | regex_replace('^https?://', '') }}</a>
+            {%- if cv_repo_url -%}
+            , dynamically-generated using
+                <a href="{{ cv_repo_url }}">{{ cv_repo_url | regex_replace('^https?://', '') }}</a>
+            {% endif %}
+        </span>
     </div>
     <div id="cv"></div>
 </body>

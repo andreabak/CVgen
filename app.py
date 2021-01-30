@@ -252,7 +252,14 @@ def cv(token_id: str) -> Response:
     token_valid: bool = validate_token(token_id=token_id)
     log_request(request, token_id=token_id, token_valid=token_valid)
     if token_valid:
-        return render_template("cv.html")
+        cv_data_url: str = "static/cvdata.json"
+        cv_repo_url: Optional[str]
+        with open(cv_data_url, "rb") as fp:
+            cv_data: MutableMapping[str, Any] = json.load(fp)
+            cv_repo_url = cv_data.get("cv_repo_url")
+        return render_template(
+            "cv.html", cv_data_url="/" + cv_data_url, cv_repo_url=cv_repo_url
+        )
     abort(404)
 
 
@@ -260,4 +267,4 @@ app.before_first_request(ensure_db_schema)
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host="0.0.0.0", debug=True)
