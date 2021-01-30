@@ -4,3 +4,5 @@ dataset>=1,<2
 pytimeparse>=1,<2
 flask-httpauth>=4,<5
 sqlalchemy>=1,<2
+selenium>=4.0,<4.1
+PyPDF3>=1,<2
