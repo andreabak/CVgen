@@ -1,0 +1,6 @@
+flask>=1,<2
+werkzeug>=1,<2
+dataset>=1,<2
+pytimeparse>=1,<2
+flask-httpauth>=4,<5
+sqlalchemy>=1,<2
