@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import re
 import uuid
 import zlib
 from contextlib import contextmanager
@@ -43,6 +44,11 @@ database: dataset.Database = dataset.connect(
     engine_kwargs=dict(connect_args=dict(check_same_thread=False)),
 )
 db_thread_lock: RLock = RLock()
+
+
+@app.template_filter()
+def regex_replace(s, find, replace):
+    return re.sub(find, replace, s)
 
 
 # TODO: Should have used SQLAlchemy models, but idk
@@ -254,4 +260,4 @@ app.before_first_request(ensure_db_schema)
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)

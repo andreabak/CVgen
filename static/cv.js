@@ -9,6 +9,9 @@ const sectionTemplate = (data) => html`
 const headerSectionTemplate = (data) => html`
     <span id="name">${data.name}</span><span id="nickname">${data.nickname}</span>
     <div id="contacts">${data.contacts}</div>`;
+const textSectionTemplate = (data) => html`
+    <h2>${data.title}</h2>
+    <p id="${data.id}Text" class="text">${data.text}</p>`;
 const listSectionTemplate = (data) => html`
     <h2>${data.title}</h2>
     <div id="${data.id}List">${data.content}</div>`;
@@ -33,10 +36,14 @@ const descriptionListTemplate = (data) => html`
 const descriptionTextTemplate = (data) => html`
     <span class="description">${data.text}</span>`;
 const timedActivityTemplate = (data) => html`
-    <div class="activity"
+    <div class="activity tworows"
+            data-has-title="${intBool(data.title)}"
+            data-has-link="${intBool(data.link)}"
+            data-has-period="${intBool(data.periodFrom||data.periodTo)}"
             data-has-subtitle="${intBool(data.subtitle)}"
             data-has-location="${intBool(data.location)}">
         <span class="title">${data.title}</span>
+        <a class="link" href="${data.link}" target="_blank">${data.linkText||data.link}</a>
         <span class="period">
             ${data.periodFrom === undefined ? "" : activityDateTemplate({date: data.periodFrom})}
             ${data.periodTo === undefined ? "" : activityDateTemplate({date: data.periodTo})}
@@ -63,6 +70,8 @@ const renderSections = (sectionsData) => {
         let sectionInner;
         if (data.type == 'header')
             sectionInner = makeHeaderSection(data);
+        else if (data.type == 'text')
+            sectionInner = textSectionTemplate(data);
         else if (data.type == 'list')
             sectionInner = makeListSection(data);
         else if (data.type == 'skills')
@@ -70,7 +79,7 @@ const renderSections = (sectionsData) => {
         const section = sectionTemplate({id: data.id, inner: sectionInner});
         sections.push(section);
     }
-    render(sections, document.querySelector('body'));
+    render(sections, document.querySelector('#cv'));
 };
 
 const makeHeaderSection = (headerData) => {
@@ -100,6 +109,8 @@ const makeWorkList = (workData) => {
         periodFrom: job.period[0],
         periodTo: job.period[1],
         subtitle: job.jobTitle,
+        link: job.link,
+        linkText: job.linkText,
         location: job.location,
         description: job.keyPoints,
     }));
@@ -108,9 +119,11 @@ const makeWorkList = (workData) => {
 const makeProjectsList = (projectsData) => {
     const activitiesData = projectsData.map((project) => ({
         title: project.name,
-        periodFrom: project.period[0],
-        periodTo: project.period[1],
+        periodFrom: project.period ? project.period[0] : undefined,
+        periodTo: project.period ? project.period[1] : undefined,
         subtitle: project.subtitle,
+        link: project.link,
+        linkText: project.linkText,
         description: project.features,
     }));
     return makeActivities(activitiesData);
@@ -122,6 +135,8 @@ const makeEducationList = (educationData) => {
         periodTo: edu.period[1],
         location: edu.location,
         subtitle: edu.course,
+        link: edu.link,
+        linkText: edu.linkText,
         description: edu.description,
     }));
     return makeActivities(activitiesData);
@@ -134,7 +149,7 @@ const makeTimedActivity = (activityData) => {
     const data = {...activityData};
     if (Array.isArray(data.description))
         data.description = makeDescriptionList(data.description);
-    else
+    else if (data.description != null)
         data.description = descriptionTextTemplate({text: data.description});
     return timedActivityTemplate(data);
 };
