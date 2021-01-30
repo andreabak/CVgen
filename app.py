@@ -184,7 +184,7 @@ def create_token(token_name: str):
     with db_context() as db:
         tokens_table: dataset.Table = db[TOKEN_TABLE_NAME]
         tokens_table.insert(token)
-    return f"OK! New token id = {token_id}"
+    return token_id
 
 
 def flatten(obj: Any, pending_ids: Optional[Set[int]] = None) -> Any:

@@ -3,6 +3,7 @@ import base64
 import os
 import time
 from dataclasses import dataclass
+from getpass import getpass
 from io import BytesIO
 from typing import (
     MutableMapping,
@@ -13,8 +14,10 @@ from typing import (
     List,
     Sequence,
     Iterable,
+    Optional,
 )
 
+import requests
 from PyPDF3 import PdfFileReader, PdfFileWriter
 from PyPDF3.generic import RectangleObject
 from selenium import webdriver
@@ -30,8 +33,9 @@ DEFAULT_PREFS: MutableMapping[str, Any] = {
 }
 PRINT_OPTIONS: Mapping[str, Any] = {
     "scale": 1.0,
-    "background": True,  # FIXME: Seems broken in FF<=85
-    "printBackground": True,  # FIXME: Seems broken in FF<=85
+    # FIXME: background printing seems broken in FF<=85
+    "background": True,
+    "printBackground": True,
     "page": {
         "width": 21.0,
         "height": 29.7,
@@ -91,6 +95,8 @@ def start_webdriver(prefs: Mapping[str, Any], **kwargs) -> webdriver.Firefox:
     options.set_capability("marionette", True)
     driver: webdriver.Firefox = webdriver.Firefox(options=options, **kwargs)
     # Patch-in new print WebDriver command
+    # FIXME: Refactor once selenium>=4.0.0a8 releases, if includes print command
+    # noinspection PyProtectedMember
     driver.command_executor._commands["printPage"] = (
         "POST",
         "/session/$sessionId/print",
@@ -188,7 +194,7 @@ def extract_pdf(driver: BaseWebDriver) -> bytes:
     return pdf_data
 
 
-def inject_pdf_links(filename: str, pdf_data: bytes, links: Iterable[Link]) -> None:
+def inject_pdf_links(filepath: str, pdf_data: bytes, links: Iterable[Link]) -> None:
     pdf_stream: BytesIO = BytesIO(pdf_data)
     source_pdf: PdfFileReader = PdfFileReader(pdf_stream)
     pdf_writer: PdfFileWriter = PdfFileWriter()
@@ -214,34 +220,132 @@ def inject_pdf_links(filename: str, pdf_data: bytes, links: Iterable[Link]) -> N
         # noinspection PyTypeChecker
         pdf_writer.addURI(
             pagenum=0,
-            uri=link.uri,
+            uri=link.uri,  # Broken type annotation in PyPDF3
             rect=[link_box.x0, link_box.y0, link_box.x1, link_box.y1],
             border=[0, 0, 0],
         )
-    with open(filename, "wb") as out_fp:
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, "wb") as out_fp:
         pdf_writer.write(out_fp)
+
+
+def create_token(
+    base_url: str,
+    token_name: str,
+    expiry: Optional[str] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    base_name: Optional[str] = None,
+    output_path: Optional[str] = None,
+) -> Tuple[str, str]:
+    if base_name is None and output_path is None:
+        raise AttributeError('Must specify one of "base_name" or "output_path"')
+    if user is None:
+        print("create_token requires authentication")
+        user = input("username: ")
+    if password is None:
+        password = getpass("password: ")
+    token_url: str = f"{base_url}/create_token/{token_name}"
+    params: MutableMapping[str, Any] = dict()
+    if expiry:
+        params["expiry"] = expiry
+    print(f'Creating new token "{token_name}"')
+    response: requests.Response = requests.get(
+        url=token_url, params=params, auth=(user, password)
+    )
+    if response.status_code != 200:
+        print(
+            "ERROR: Failed creating token!\n"
+            f"Response code {response.status_code}: {response.text}"
+        )
+        exit(-1)
+    new_token_id: str = response.text.strip()
+    print(f'Created new token with id={new_token_id}')
+    pdf_url: str = f"{base_url}/cv/{new_token_id}"
+    filepath: str = output_path or os.path.join("pdf", token_name, base_name + ".pdf")
+    return pdf_url, filepath
+
+
+def export_pdf(pdf_url: str, filepath: str) -> None:
+    prefs: MutableMapping[str, Any] = dict(flattened(DEFAULT_PREFS))
+    driver: webdriver.Firefox
+    print("Starting headless firefox through geckodriver")
+    with start_webdriver(prefs) as driver:
+        print(f"Navigating to {pdf_url}")
+        driver.get(pdf_url)
+        time.sleep(1)  # TODO: Replace with better waits
+        print(f"Extracting page links")
+        links: Sequence[Link] = extract_links(driver)
+        print(f"Printing page as pdf")
+        pdf_data: bytes = extract_pdf(driver)
+        print(f"Injecting links into pdf and saving")
+        inject_pdf_links(filepath, pdf_data, links)
 
 
 def main():
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Export web page as PDF using Firefox"
     )
-    parser.add_argument("url", help="The URL of the page to process")
-    parser.add_argument("output", help="The output filepath for the PDF file")
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    export_pdf_args = subparsers.add_parser(
+        "export-pdf", help="Export url to pdf"
+    )
+    export_pdf_args.add_argument(
+        "url", help="The URL of the page to process"
+    )
+    export_pdf_args.add_argument(
+        "output", help="The output path for the PDF file"
+    )
+
+    create_token_args = subparsers.add_parser(
+        "create-token", help="Create new token"
+    )
+    create_token_args.add_argument(
+        "base_url", metavar="URL", help="The base url preceding /create_token/"
+    )
+    create_token_args.add_argument(
+        "token_name", metavar="TOKEN_NAME", help="The name for the new token"
+    )
+    create_token_args.add_argument(
+        "-e", "--expiry", help="Expiry for the new token, if different from default"
+    )
+    create_token_args.add_argument(
+        "-u", "--user", help="Username for authentication"
+    )
+    create_token_args.add_argument(
+        "-p", "--password", help="Password for authentication"
+    )
+    path_group = create_token_args.add_mutually_exclusive_group()
+    path_group.add_argument(
+        "-b", "--basename", help="The base name for the PDF file"
+    )
+    path_group.add_argument(
+        "-o", "--output", help="The output path for the PDF file"
+    )
 
     args: argparse.Namespace = parser.parse_args()
 
-    url: str = args.url
-    filename: str = os.path.abspath(args.output)
-    tempdir: str
-    prefs: MutableMapping[str, Any] = dict(flattened(DEFAULT_PREFS))
-    driver: webdriver.Firefox
-    with start_webdriver(prefs) as driver:
-        driver.get(url)
-        # time.sleep(3)  # TODO: Replace with actual waits
-        links: Sequence[Link] = extract_links(driver)
-        pdf_data: bytes = extract_pdf(driver)
-        inject_pdf_links(filename, pdf_data, links)
+    pdf_url: str
+    filepath: str
+    if args.command == "create-token":
+        pdf_url, filepath = create_token(
+            args.base_url,
+            args.token_name,
+            expiry=args.expiry,
+            user=args.user,
+            password=args.password,
+            base_name=args.basename or "cv",
+            output_path=args.output,
+        )
+    elif args.command == "export-pdf":
+        pdf_url = args.url
+        filepath = args.output
+    else:
+        raise argparse.ArgumentError(None, "No command specified!")
+
+    export_pdf(pdf_url, filepath)
 
 
 if __name__ == "__main__":
