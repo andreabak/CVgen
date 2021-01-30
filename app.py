@@ -256,9 +256,13 @@ def cv(token_id: str) -> Response:
         cv_repo_url: Optional[str]
         with open(cv_data_url, "rb") as fp:
             cv_data: MutableMapping[str, Any] = json.load(fp)
+            cv_title: str = cv_data["title"]
             cv_repo_url = cv_data.get("cv_repo_url")
         return render_template(
-            "cv.html", cv_data_url="/" + cv_data_url, cv_repo_url=cv_repo_url
+            "cv.html",
+            cv_title=cv_title,
+            cv_data_url="/" + cv_data_url,
+            cv_repo_url=cv_repo_url,
         )
     abort(404)
 
