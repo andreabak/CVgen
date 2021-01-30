@@ -56,3 +56,4 @@ Temporary Items
 # Project-specific files and directories
 app.db*
 /geckodriver*
+/pdf/
