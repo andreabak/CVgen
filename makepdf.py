@@ -1,3 +1,5 @@
+"""Utility script to export a CV to pdf"""
+
 import argparse
 import base64
 import os
@@ -33,7 +35,7 @@ DEFAULT_PREFS: MutableMapping[str, Any] = {
 }
 PRINT_OPTIONS: Mapping[str, Any] = {
     "scale": 1.0,
-    # FIXME: background printing seems broken in FF<=85
+    # TODO: background printing seems broken in FF<=85
     "background": True,
     "printBackground": True,
     "page": {
@@ -60,6 +62,7 @@ def flat_iter(d: Mapping[str, Any], sep: str = ".") -> Iterator[Tuple[str, Any]]
     :return: an iterator of (key, value) tuples
     """
     for k, v in d.items():
+        # pylint: disable=isinstance-second-argument-not-valid-type
         if isinstance(v, Mapping):
             for subk, subv in flat_iter(v, sep=sep):
                 yield sep.join((k, subk)), subv
@@ -97,6 +100,7 @@ def start_webdriver(prefs: Mapping[str, Any], **kwargs) -> webdriver.Firefox:
     # Patch-in new print WebDriver command
     # FIXME: Refactor once selenium>=4.0.0a8 releases, if includes print command
     # noinspection PyProtectedMember
+    # pylint: disable=protected-access
     driver.command_executor._commands["printPage"] = (
         "POST",
         "/session/$sessionId/print",
@@ -104,32 +108,9 @@ def start_webdriver(prefs: Mapping[str, Any], **kwargs) -> webdriver.Firefox:
     return driver
 
 
-def wait_for_file(basedir: str, timeout: float = 10.0) -> str:
-    timed_out: bool
-    start_time = time.time()
-    while len(os.listdir(basedir)) != 1:
-        if (time.time() - start_time) > timeout:
-            timed_out = True
-            break
-        time.sleep(0.1)
-    else:
-        timed_out = False
-        while os.path.getsize(os.path.join(basedir, os.listdir(basedir)[0])) == 0:
-            time.sleep(0.1)
-    if timed_out:
-        raise FileNotFoundError(f'Timed-out waiting for file in "{basedir}"')
-    while True:
-        filename = os.listdir(basedir)[0]
-        try:
-            os.rename(filename, filename)
-        except OSError:
-            time.sleep(0.1)
-        else:
-            return filename
-
-
 @dataclass
 class SizedBox:
+    """A simple dataclass to represent a bounding box of a web element"""
     x: float
     y: float
     width: float
@@ -137,37 +118,51 @@ class SizedBox:
 
     @property
     def x0(self) -> float:
+        """The left side x-coordinate of the box"""
         return self.x
 
     @property
     def x1(self) -> float:
+        """The right side x-coordinate of the box"""
         return self.x + self.width
 
     @property
     def y0(self) -> float:
+        """The top side y-coordinate of the box"""
         return self.y
 
     @property
     def y1(self) -> float:
+        """The bottom side y-coordinate of the box"""
         return self.y + self.height
 
     @classmethod
-    def from_webelement(cls, el: WebElement) -> "SizedBox":
+    def from_webelement(cls, element: WebElement) -> "SizedBox":
+        """Creates a new `SizedBox` instance from a `WebElement`,
+        using its location and size as data"""
         return cls(
-            x=el.location["x"],
-            y=el.location["y"],
-            width=el.size["width"],
-            height=el.size["height"],
+            x=element.location["x"],
+            y=element.location["y"],
+            width=element.size["width"],
+            height=element.size["height"],
         )
 
 
 @dataclass
 class Link:
+    """A dataclass representing a simple link with its display bounding box"""
     uri: str
     box: SizedBox
 
 
 def extract_links(driver: BaseWebDriver, size_relative: bool = True) -> List[Link]:
+    """
+    Extract all the links in the current webpage
+    :param driver: the `WebDriver` instance
+    :param size_relative: if True (default) the coordinates and sizes of the links'
+        bounding boxes will be scaled relatively to the width of the "<body>" element
+    :return: a list of Link objects
+    """
     body: WebElement = driver.find_element(By.TAG_NAME, "BODY")
     body_box: SizedBox = SizedBox.from_webelement(body)
     rel_scale: float = 1.0 / body_box.width
@@ -188,13 +183,30 @@ def extract_links(driver: BaseWebDriver, size_relative: bool = True) -> List[Lin
     return links
 
 
-def extract_pdf(driver: BaseWebDriver) -> bytes:
+def print_webpage_to_pdf(driver: BaseWebDriver) -> bytes:
+    """
+    Prints the current webpage of the given webdriver to PDF, using the "Print"
+    command as specified in the W3C WebDriver spec
+    :param driver: the `WebDriver` instance
+    :return: the bytes of the printed pdf data
+    """
     pdf_b64: str = driver.execute("printPage", PRINT_OPTIONS)["value"]
     pdf_data: bytes = base64.b64decode(pdf_b64)
     return pdf_data
 
 
-def inject_pdf_links(filepath: str, pdf_data: bytes, links: Iterable[Link]) -> None:
+def inject_pdf_links(
+    filepath: str, pdf_data: bytes, links: Iterable[Link], size_relative: bool = True
+) -> None:
+    """
+    Injects links into a pdf file data
+    :param filepath: the output file path for the pdf
+    :param pdf_data: the source pdf data as bytes
+    :param links: an iterable of `Link` objects
+    :param size_relative: if True (default) the coordinates and sizes of the links'
+        bounding boxes must be relative [0~1] to the width of the pdf page,
+        otherwise their absolute values are used
+    """
     pdf_stream: BytesIO = BytesIO(pdf_data)
     source_pdf: PdfFileReader = PdfFileReader(pdf_stream)
     pdf_writer: PdfFileWriter = PdfFileWriter()
@@ -206,7 +218,7 @@ def inject_pdf_links(filepath: str, pdf_data: bytes, links: Iterable[Link]) -> N
         width=pdf_page_trim_box[2] - pdf_page_trim_box[0],
         height=pdf_page_trim_box[3] - pdf_page_trim_box[1],
     )
-    pdf_scale: float = pdf_page_box.width
+    pdf_scale: float = pdf_page_box.width if size_relative else 1.0
     link: Link
     for link in links:
         link_box: SizedBox = SizedBox(
@@ -235,11 +247,19 @@ def create_token(
     expiry: Optional[str] = None,
     user: Optional[str] = None,
     password: Optional[str] = None,
-    base_name: Optional[str] = None,
-    output_path: Optional[str] = None,
-) -> Tuple[str, str]:
-    if base_name is None and output_path is None:
-        raise AttributeError('Must specify one of "base_name" or "output_path"')
+) -> str:
+    """
+    Creates a new access token for a CV page
+    :param base_url: the base url of the server hosting the CV app
+    :param token_name: the name of the new token to create
+    :param expiry: a string indicating the expiry interval from now,
+        if omitted, the default value configured in the server app will be used
+    :param user: the username to use for authentication, if omitted, it will be
+        prompted for input at runtime
+    :param password: the password to use for authentication, if omitted, it will be
+        prompted for input at runtime
+    :return: the id of the newly-created token
+    """
     if user is None:
         print("create_token requires authentication")
         user = input("username: ")
@@ -258,50 +278,46 @@ def create_token(
             "ERROR: Failed creating token!\n"
             f"Response code {response.status_code}: {response.text}"
         )
-        exit(-1)
+        raise SystemExit(-1)
     new_token_id: str = response.text.strip()
-    print(f'Created new token with id={new_token_id}')
-    pdf_url: str = f"{base_url}/cv/{new_token_id}"
-    filepath: str = output_path or os.path.join("pdf", token_name, base_name + ".pdf")
-    return pdf_url, filepath
+    print(f"Created new token with id={new_token_id}")
+    return new_token_id
 
 
-def export_pdf(pdf_url: str, filepath: str) -> None:
+def export_pdf(url: str, filepath: str) -> None:
+    """
+    Export a page at the specified url to a pdf file, using selenium and firefox
+    :param url: the url of the webpage to export
+    :param filepath: the destination pdf file path
+    """
     prefs: MutableMapping[str, Any] = dict(flattened(DEFAULT_PREFS))
     driver: webdriver.Firefox
     print("Starting headless firefox through geckodriver")
     with start_webdriver(prefs) as driver:
-        print(f"Navigating to {pdf_url}")
-        driver.get(pdf_url)
+        print(f"Navigating to {url}")
+        driver.get(url)
         time.sleep(1)  # TODO: Replace with better waits
-        print(f"Extracting page links")
+        print("Extracting page links")
         links: Sequence[Link] = extract_links(driver)
-        print(f"Printing page as pdf")
-        pdf_data: bytes = extract_pdf(driver)
-        print(f"Injecting links into pdf and saving")
+        print("Printing page as pdf")
+        pdf_data: bytes = print_webpage_to_pdf(driver)
+        print("Injecting links into pdf and saving")
         inject_pdf_links(filepath, pdf_data, links)
 
 
 def main():
+    """Main program entry point"""
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Export web page as PDF using Firefox"
     )
 
     subparsers = parser.add_subparsers(dest="command")
 
-    export_pdf_args = subparsers.add_parser(
-        "export-pdf", help="Export url to pdf"
-    )
-    export_pdf_args.add_argument(
-        "url", help="The URL of the page to process"
-    )
-    export_pdf_args.add_argument(
-        "output", help="The output path for the PDF file"
-    )
+    export_pdf_args = subparsers.add_parser("export-pdf", help="Export url to pdf")
+    export_pdf_args.add_argument("url", help="The URL of the page to process")
+    export_pdf_args.add_argument("output", help="The output path for the PDF file")
 
-    create_token_args = subparsers.add_parser(
-        "create-token", help="Create new token"
-    )
+    create_token_args = subparsers.add_parser("create-token", help="Create new token")
     create_token_args.add_argument(
         "base_url", metavar="URL", help="The base url preceding /create_token/"
     )
@@ -311,41 +327,37 @@ def main():
     create_token_args.add_argument(
         "-e", "--expiry", help="Expiry for the new token, if different from default"
     )
-    create_token_args.add_argument(
-        "-u", "--user", help="Username for authentication"
-    )
+    create_token_args.add_argument("-u", "--user", help="Username for authentication")
     create_token_args.add_argument(
         "-p", "--password", help="Password for authentication"
     )
     path_group = create_token_args.add_mutually_exclusive_group()
-    path_group.add_argument(
-        "-b", "--basename", help="The base name for the PDF file"
-    )
-    path_group.add_argument(
-        "-o", "--output", help="The output path for the PDF file"
-    )
+    path_group.add_argument("-b", "--basename", help="The base name for the PDF file")
+    path_group.add_argument("-o", "--output", help="The output path for the PDF file")
 
     args: argparse.Namespace = parser.parse_args()
 
-    pdf_url: str
+    url: str
     filepath: str
     if args.command == "create-token":
-        pdf_url, filepath = create_token(
+        new_token_id: str = create_token(
             args.base_url,
             args.token_name,
             expiry=args.expiry,
             user=args.user,
             password=args.password,
-            base_name=args.basename or "cv",
-            output_path=args.output,
+        )
+        url = f"{args.base_url}/cv/{new_token_id}"
+        filepath = args.output or os.path.join(
+            "pdf", args.token_name, (args.basename or "cv") + ".pdf"
         )
     elif args.command == "export-pdf":
-        pdf_url = args.url
+        url = args.url
         filepath = args.output
     else:
         raise argparse.ArgumentError(None, "No command specified!")
 
-    export_pdf(pdf_url, filepath)
+    export_pdf(url, filepath)
 
 
 if __name__ == "__main__":

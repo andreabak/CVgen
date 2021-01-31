@@ -1,4 +1,5 @@
 """CV serving Flask app"""
+
 import base64
 import json
 import os
@@ -47,13 +48,25 @@ db_thread_lock: RLock = RLock()
 
 
 @app.template_filter()
-def regex_replace(s, find, replace):
-    return re.sub(find, replace, s)
+def regex_replace(string: str, find: str, replace: str) -> str:
+    """
+    Simple jinja2 template filter for `re.sub(...)`
+    :param string: the string to replace
+    :param find: the regex pattern to search by
+    :param replace: the regex replace pattern
+    :return: the replaced string
+    """
+    return re.sub(find, replace, string)
 
 
-# TODO: Should have used SQLAlchemy models, but idk
 @auth.verify_password
 def verify_password(username: str, password: str):
+    """
+    Verifies password for `flask_httpauth.HTTPBasicAuth` against database
+    :param username: the provided username
+    :param password: the provided password
+    :return: the user object, if user+password were valid, else None
+    """
     with db_context() as db:
         users_table: dataset.Table = db[USERS_TABLE_NAME]
         user_db: Optional[MutableMapping] = users_table.find_one(username=username)
@@ -64,6 +77,7 @@ def verify_password(username: str, password: str):
     return None
 
 
+# TODO: Should have used SQLAlchemy models, but idk
 class User(TypedDict):
     """TypedDict class for users stored in database"""
 
@@ -152,6 +166,11 @@ def db_context() -> Iterator[dataset.Database]:
 
 
 def validate_token(token_id: str) -> bool:
+    """
+    Validates a token by its id against the database
+    :param token_id: the token id to validate
+    :return: True if the token id is valid, False otherwise
+    """
     with db_context() as db:
         tokens_table: dataset.Table = db[TOKEN_TABLE_NAME]
         token_db: Optional[MutableMapping] = tokens_table.find_one(id=token_id)
@@ -165,7 +184,16 @@ def validate_token(token_id: str) -> bool:
 
 @app.route("/create_token/<string:token_name>")
 @auth.login_required
-def create_token(token_name: str):
+def create_token(token_name: str) -> str:
+    """
+    Route endpoint function to create a new CV access token.
+    Requires HTTP authentication by a valid admin user, as stored in the database.
+    Additional query arguments:
+     - "expiry": optional, a string indicating the time interval from now by which
+           the token will expire (same format used by `pytimeparse`)
+    :param token_name: the name of the newly-created token
+    :return: a simple plaintext response containing the id of the created token
+    """
     user: User = auth.current_user()
     if not user["is_admin"]:
         abort(403)
@@ -187,7 +215,15 @@ def create_token(token_name: str):
     return token_id
 
 
-def flatten(obj: Any, pending_ids: Optional[Set[int]] = None) -> Any:
+# pylint: disable=isinstance-second-argument-not-valid-type
+def make_serializable(obj: Any, _pending_ids: Optional[Set[int]] = None) -> Any:
+    """
+    Recursively simplifies a python object (including generic class instances),
+    enumerating its items / attributes and making in order to make it serializable.
+    :param obj: the object to make serializable
+    :param _pending_ids: argument used internally to prevent infinite recursion
+    :return: a serializable-friendly simplified version of the original object
+    """
     if obj is None:
         return None
     if isinstance(obj, (int, bool, float, str)):
@@ -198,24 +234,24 @@ def flatten(obj: Any, pending_ids: Optional[Set[int]] = None) -> Any:
         # noinspection PyProtectedMember
         # pylint: disable=protected-access
         obj = obj._get_current_object()
-    if pending_ids is None:
-        pending_ids = set()
+    if _pending_ids is None:
+        _pending_ids = set()
     obj_id: int = id(obj)
-    if obj_id in pending_ids:
+    if obj_id in _pending_ids:
         return f"[recursion! id={obj_id}]"
-    pending_ids.add(obj_id)
+    _pending_ids.add(obj_id)
     result: Any
     if isinstance(obj, Mapping):
         result = {
-            k: flatten(v, pending_ids=pending_ids)
+            k: make_serializable(v, _pending_ids=_pending_ids)
             for k, v in obj.items()
             if isinstance(k, (str, int, float, bool))
         }
     elif isinstance(obj, Collection) and hasattr(obj, "__iter__"):
-        result = [flatten(o, pending_ids=pending_ids) for o in obj]
+        result = [make_serializable(o, _pending_ids=_pending_ids) for o in obj]
     elif isinstance(obj, object):
         result = {
-            n: flatten(v, pending_ids=pending_ids)
+            n: make_serializable(v, _pending_ids=_pending_ids)
             for n in dir(obj)
             if not n.startswith("_")
             and isinstance(n, (str, int, float, bool))
@@ -224,16 +260,25 @@ def flatten(obj: Any, pending_ids: Optional[Set[int]] = None) -> Any:
         }
     else:
         result = repr(obj)
-    pending_ids.discard(obj_id)
+    _pending_ids.discard(obj_id)
     return result
 
 
-def log_request(req: Request, token_id: str, token_valid: Optional[bool] = None):
+def log_request(
+    req: Request, token_id: str, token_valid: Optional[bool] = None
+) -> None:
+    """
+    Logs a Flask request, storing it as json in the database
+    :param req: the `flask.Request` object
+    :param token_id: the token id of the connection
+    :param token_valid: whether the token is valid, if None or omitted,
+        it will validate the given token_id
+    """
     if token_valid is None:
         token_valid = validate_token(token_id)
 
     req_time: datetime = datetime.now()
-    req_flat: Any = flatten(req)
+    req_flat: Any = make_serializable(req)
     req_data: str = json.dumps(req_flat)
     connection: LoggedConnection = LoggedConnection(
         request_time=req_time,
@@ -247,8 +292,16 @@ def log_request(req: Request, token_id: str, token_valid: Optional[bool] = None)
         connections_table.insert(connection)
 
 
+# pylint: disable=inconsistent-return-statements
 @app.route("/cv/<string:token_id>")
 def cv(token_id: str) -> Response:
+    """
+    CV route endpoint function.
+    Renders a CV page, but only when called with a valid token id,
+    otherwise returns a 404 error.
+    :param token_id: the token id part of the path
+    :return: the rendered CV page response
+    """
     token_valid: bool = validate_token(token_id=token_id)
     log_request(request, token_id=token_id, token_valid=token_valid)
     if token_valid:
